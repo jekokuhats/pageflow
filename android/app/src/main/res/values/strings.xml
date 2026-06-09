@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PageFlow</string>
+    <string name="title_activity_main">PageFlow</string>
+    <string name="package_name">com.prs.pageflow</string>
+    <string name="custom_url_scheme">com.prs.pageflow</string>
+</resources>

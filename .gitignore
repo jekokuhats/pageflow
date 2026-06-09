@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+build/
+dist/
+.env
+npm-debug.log
+.vscode/
+.idea/
+package-lock.json
+pdf.js-master/

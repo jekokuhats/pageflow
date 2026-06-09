@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PageFlow - Smart PDF Reader</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+    <script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.51/build/spline-viewer.js"></script>
+    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <!-- PWA Manifest & Meta -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff4fa3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PageFlow">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+</head>
+
+<body>
+
+    <!-- View: Login / Signup -->
+    <section id="view-login" class="view active view-login-animated">
+        <!-- Realistic 3D Background with Spline -->
+        <div class="spline-container">
+            <spline-viewer url="https://prod.spline.design/5Z-280qD-b2GXXqN/scene.splinecode"></spline-viewer>
+        </div>
+
+        <div class="login-container relative-z">
+            <h1 class="logo-text">Page<span>Flow</span></h1>
+            <p class="subtitle">Your smart mobile library</p>
+
+            <div class="card login-card">
+                <div class="tabs">
+                    <button id="tab-login" class="active">Login</button>
+                    <button id="tab-signup">Signup</button>
+                </div>
+
+                <form id="auth-form">
+                    <div class="input-group">
+                        <i class="fa fa-envelope"></i>
+                        <input type="email" id="email" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa fa-lock"></i>
+                        <input type="password" id="password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn primary-btn w-100" id="auth-submit">Login</button>
+
+                    <div class="divider">
+                        <span>OR</span>
+                    </div>
+
+                    <button type="button" class="btn google-btn w-100" id="google-auth-btn">
+                        <img src="https://cdn1.iconfinder.com/data/icons/google-s-logo/150/Google_Icons-09-512.png"
+                            alt="Google Logo" class="google-icon">
+                        Continue with Google
+                    </button>
+                </form>
+                <div id="auth-error" class="error-text"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- View: Home Library -->
+    <section id="view-home" class="view">
+        <header class="app-header premium-header">
+            <h2 class="gradient-text">Discover</h2>
+            <div class="user-avatar-mini" id="mini-profile-btn">
+                <i class="fa fa-user"></i>
+            </div>
+        </header>
+
+        <main class="content-scroll">
+            <div class="greeting-sec">
+                <h3>Welcome back,</h3>
+                <p>Pick up where you left off or start a new book.</p>
+            </div>
+
+            <!-- Recently opened -->
+            <div id="recent-book-sec" style="display: none;">
+                <div class="section-title">
+                    <h4>Recently Opened</h4>
+                </div>
+                <div class="recent-book-card" id="recent-book-card">
+                    <!-- populated dynamically -->
+                </div>
+            </div>
+
+            <div class="section-title">
+                <h4>Your Books</h4>
+            </div>
+            <div class="books-grid" id="books-grid">
+                <!-- Book cards go here -->
+                <div class="empty-state">No books yet. Upload one!</div>
+            </div>
+        </main>
+
+        <button class="fab" id="upload-fab">
+            <i class="fa fa-plus"></i>
+        </button>
+        <input type="file" id="pdf-upload" accept="application/pdf" style="display: none;">
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-target="view-home">
+                <i class="fa fa-book"></i>
+                <span>Library</span>
+            </button>
+            <button class="nav-item" data-target="view-highlights">
+                <i class="fa fa-highlighter"></i>
+                <span>Highlights</span>
+            </button>
+            <button class="nav-item" data-target="view-profile">
+                <i class="fa fa-user"></i>
+                <span>Profile</span>
+            </button>
+        </nav>
+    </section>
+
+    <!-- View: PDF Reader -->
+    <section id="view-reader" class="view">
+        <header class="reader-header">
+            <button class="icon-btn" id="reader-back"><i class="fa fa-arrow-left"></i></button>
+            <h3 class="reader-title" id="reader-title">Book Title</h3>
+            <button class="icon-btn" id="continue-later-btn"><i class="fa fa-bookmark"></i></button>
+        </header>
+
+        <div class="reader-toolbar">
+            <div class="zoom-controls">
+                <button id="zoom-out"><i class="fa fa-search-minus"></i></button>
+                <span id="zoom-level">100%</span>
+                <button id="zoom-in"><i class="fa fa-search-plus"></i></button>
+            </div>
+            <div class="page-controls">
+                <button id="prev-page"><i class="fa fa-chevron-left"></i></button>
+                <span><span id="page-num">1</span> / <span id="page-count">--</span></span>
+                <button id="next-page"><i class="fa fa-chevron-right"></i></button>
+            </div>
+        </div>
+
+        <!-- Highlight Color Picker (hidden by default) -->
+        <div id="highlight-picker" class="highlight-picker" style="display: none;">
+            <button class="color-btn" data-color="yellow" style="background: rgba(255,255,0,0.5);"></button>
+            <button class="color-btn" data-color="blue" style="background: rgba(0,0,255,0.3);"></button>
+            <button class="color-btn" data-color="green" style="background: rgba(0,255,0,0.3);"></button>
+            <button class="color-btn" data-color="pink" style="background: rgba(255,192,203,0.7);"></button>
+            <button class="btn secondary-btn save-hl-btn" id="save-highlight-btn">Save</button>
+        </div>
+
+        <main class="reader-content" id="reader-content">
+            <div id="pdf-wrapper" class="pdf-wrapper">
+                <canvas id="pdf-render"></canvas>
+                <div id="text-layer" class="textLayer"></div>
+            </div>
+        </main>
+
+    </section>
+
+    <!-- View: Highlights -->
+    <section id="view-highlights" class="view">
+        <header class="app-header">
+            <h2>Highlights</h2>
+        </header>
+        <main class="content-scroll">
+            <div class="highlights-list" id="highlights-list">
+                <!-- Highlight cards go here -->
+                <div class="empty-state">No highlights yet.</div>
+            </div>
+        </main>
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+            <button class="nav-item" data-target="view-home">
+                <i class="fa fa-book"></i>
+                <span>Library</span>
+            </button>
+            <button class="nav-item active" data-target="view-highlights">
+                <i class="fa fa-highlighter"></i>
+                <span>Highlights</span>
+            </button>
+            <button class="nav-item" data-target="view-profile">
+                <i class="fa fa-user"></i>
+                <span>Profile</span>
+            </button>
+        </nav>
+    </section>
+
+    <!-- View: Profile -->
+    <section id="view-profile" class="view">
+        <header class="app-header premium-header">
+            <h2 class="gradient-text">Profile</h2>
+        </header>
+        <main class="content-scroll">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    <i class="fa fa-user"></i>
+                </div>
+                <h3 id="profile-name">Reader</h3>
+                <p id="profile-email">user@email.com</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4 id="stat-books">0</h4>
+                    <p>Total Books</p>
+                </div>
+                <div class="stat-card">
+                    <h4 id="stat-highlights">0</h4>
+                    <p>Highlights</p>
+                </div>
+            </div>
+
+            <div class="settings-list">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <i class="fa fa-moon"></i>
+                        <span>Dark Mode</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="dark-mode-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <button class="btn secondary-btn w-100" id="logout-btn" style="margin-top: 30px;">
+                    <i class="fa fa-sign-out-alt"></i> Sign Out
+                </button>
+            </div>
+        </main>
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+            <button class="nav-item" data-target="view-home">
+                <i class="fa fa-book"></i>
+                <span>Library</span>
+            </button>
+            <button class="nav-item" data-target="view-highlights">
+                <i class="fa fa-highlighter"></i>
+                <span>Highlights</span>
+            </button>
+            <button class="nav-item active" data-target="view-profile">
+                <i class="fa fa-user"></i>
+                <span>Profile</span>
+            </button>
+        </nav>
+    </section>
+
+    <!-- Overlay Loader -->
+    <div id="loader" class="loader-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc, getDoc, orderBy, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+
+        // We will expose these to window so our app.js can use them
+        window.firebaseModules = {
+            initializeApp, getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence,
+            getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc, getDoc, orderBy, setDoc, deleteDoc,
+            getStorage, ref, uploadBytesResumable, getDownloadURL
+        };
+    </script>
+    <script src="app.js?v=18" type="module"></script>
+
+    <!-- Register PWA Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+                    .catch(err => console.warn('[PWA] SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
