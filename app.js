@@ -412,6 +412,24 @@ darkModeToggle?.addEventListener('change', (e) => {
     }
 });
 
+/* ================== GEMINI API KEY CONFIG ================== */
+const apiKeyInput = document.getElementById('gemini-api-key-input');
+const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+if (apiKeyInput) {
+    apiKeyInput.value = localStorage.getItem('pageflow_gemini_api_key') || '';
+}
+saveApiKeyBtn?.addEventListener('click', () => {
+    const keyVal = apiKeyInput.value.trim();
+    if (keyVal) {
+        localStorage.setItem('pageflow_gemini_api_key', keyVal);
+        alert('Gemini API key saved successfully!');
+    } else {
+        localStorage.removeItem('pageflow_gemini_api_key');
+        alert('Gemini API key removed. Using default key.');
+    }
+});
+
+
 /* ================== HOME LIBRARY ================== */
 function loadHome() {
     const grid = document.getElementById('books-grid');
@@ -586,15 +604,16 @@ async function openBook(book) {
         state.pdfDoc = await loadingTask.promise;
         document.getElementById('page-count').textContent = state.pdfDoc.numPages;
 
-        // Auto-scale correctly for device width if not previously set
-        if (!book.lastScale) {
-            const firstPage = await state.pdfDoc.getPage(1);
-            const unscaledViewport = firstPage.getViewport({ scale: 1.0 });
-            // Calculate optimal width: leave 40px margin, max width 800px for desktop viewing
-            let desiredWidth = window.innerWidth - 40;
-            if (desiredWidth > 800) desiredWidth = 800;
+        // Auto-scale correctly for device width
+        const firstPage = await state.pdfDoc.getPage(1);
+        const unscaledViewport = firstPage.getViewport({ scale: 1.0 });
+        
+        let desiredWidth = window.innerWidth - 40;
+        if (desiredWidth > 800) desiredWidth = 800;
+        const fitScale = desiredWidth / unscaledViewport.width;
 
-            state.scale = desiredWidth / unscaledViewport.width;
+        if (!book.lastScale || (window.innerWidth < 768 && (unscaledViewport.width * state.scale > window.innerWidth))) {
+            state.scale = fitScale;
         }
 
         renderPage(state.pageNum);
@@ -610,10 +629,13 @@ async function renderPage(num) {
     state.pageRendering = true;
 
     const page = await state.pdfDoc.getPage(num);
+    const dpr = window.devicePixelRatio || 1;
     const viewport = page.getViewport({ scale: state.scale });
 
-    state.canvas.height = viewport.height;
-    state.canvas.width = viewport.width;
+    state.canvas.width = Math.floor(viewport.width * dpr);
+    state.canvas.height = Math.floor(viewport.height * dpr);
+    state.canvas.style.width = viewport.width + 'px';
+    state.canvas.style.height = viewport.height + 'px';
 
     // Adjust the wrapper to match canvas size exactly for absolute positioning overlay
     const wrapper = document.getElementById('pdf-wrapper');
@@ -622,7 +644,8 @@ async function renderPage(num) {
 
     const renderContext = {
         canvasContext: state.ctx,
-        viewport: viewport
+        viewport: viewport,
+        transform: [dpr, 0, 0, dpr, 0, 0]
     };
 
     await page.render(renderContext).promise;
@@ -880,15 +903,21 @@ document.getElementById('ai-summarize-btn')?.addEventListener('click', async () 
         aiLoading.style.display = 'none';
         await typeWriterEffect(aiSummaryText, summary);
     } catch (error) {
+        console.error("AI summarization failure:", error);
         aiLoading.style.display = 'none';
-        aiSummaryText.innerHTML = `<span style="color:#ef4444;">Error generating summary. Make sure you are connected to the internet. Details: ${error.message}</span>`;
+        aiSummaryText.innerHTML = `<span style="color:#ef4444; font-size: 0.9rem; display: block; padding: 10px;">
+            <strong>AI Assistant Error:</strong><br>${error.message}<br><br>
+            Please check your internet connection or update your Gemini API Key in the Profile tab.
+        </span>`;
     }
 });
 
 async function getAIResponse(text) {
     try {
-        const apiKey = "AIzaSyBF9pGaIAzCrT9rn0VhGxxn0gfmfcBVOoU".trim(); // Custom Gemini API Key
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const customKey = localStorage.getItem('pageflow_gemini_api_key');
+        const apiKey = customKey ? customKey.trim() : "AIzaSyBF9pGaIAzCrT9rn0VhGxxn0gfmfcBVOoU";
+        const modelName = "gemini-2.5-flash";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
         const prompt = `You are a helpful reading assistant inside a PDF reader app. Your task is to summarize the following highlighted text. 
 Please provide a clear, concise, and accurate summary or explanation of the text. 
@@ -914,7 +943,14 @@ Highlighted Text:
         });
 
         if (!response.ok) {
-            throw new Error(`API returned status ${response.status}`);
+            let errDetails = `Status ${response.status}`;
+            try {
+                const errJson = await response.json();
+                if (errJson.error && errJson.error.message) {
+                    errDetails = errJson.error.message;
+                }
+            } catch (e) {}
+            throw new Error(errDetails);
         }
 
         const data = await response.json();
@@ -926,7 +962,7 @@ Highlighted Text:
         }
 
     } catch (error) {
-        console.error("AI summarization error:", error);
+        console.error("AI summarization error details:", error);
         throw error;
     }
 }
@@ -1068,6 +1104,21 @@ async function initApp() {
         showView('view-login');
     }
 }
+
+/* ================== WINDOW RESIZE HANDLER (MOBILE FIT) ================== */
+window.addEventListener('resize', () => {
+    const isInReader = document.getElementById('view-reader')?.classList.contains('active');
+    if (isInReader && state.pdfDoc && window.innerWidth < 768) {
+        state.pdfDoc.getPage(state.pageNum).then(page => {
+            const unscaledViewport = page.getViewport({ scale: 1.0 });
+            let desiredWidth = window.innerWidth - 40;
+            state.scale = desiredWidth / unscaledViewport.width;
+            const zoomLvl = document.getElementById('zoom-level');
+            if (zoomLvl) zoomLvl.textContent = Math.round(state.scale * 100) + '%';
+            queueRenderPage(state.pageNum);
+        });
+    }
+});
 
 // Start
 initApp();

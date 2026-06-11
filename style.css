@@ -1183,6 +1183,18 @@ spline-viewer::part(logo) {
     border: 1px solid var(--border-color);
 }
 
+.setting-item-column {
+    background: var(--card-bg);
+    border-radius: var(--radius-card);
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+}
+
+
 .setting-info {
     display: flex;
     align-items: center;

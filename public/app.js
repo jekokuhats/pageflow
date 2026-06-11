@@ -272,8 +272,6 @@ function initFirebase() {
         }
     });
 }
-const GEMINI_API_KEY = "AIzaSyC15V_gfDSc8hryG2W5dRR0H13e_kQhwq4";
-
 // PageFlow AI: Chat-style summarizer logic
 async function summarizeWithAI(text) {
     const chatWindow = document.getElementById('ai-chat-window');
@@ -291,8 +289,13 @@ async function summarizeWithAI(text) {
     toggleTyping(true);
 
     try {
+        const customKey = localStorage.getItem('pageflow_gemini_api_key');
+        const apiKey = customKey ? customKey.trim() : "AIzaSyC15V_gfDSc8hryG2W5dRR0H13e_kQhwq4";
+        const modelName = "gemini-2.5-flash";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            apiUrl,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -302,15 +305,30 @@ async function summarizeWithAI(text) {
             }
         );
 
+        if (!response.ok) {
+            let errDetails = `Status ${response.status}`;
+            try {
+                const errJson = await response.json();
+                if (errJson.error && errJson.error.message) {
+                    errDetails = errJson.error.message;
+                }
+            } catch (e) {}
+            throw new Error(errDetails);
+        }
+
         const data = await response.json();
-        const summary = data.candidates[0].content.parts[0].text;
         
-        toggleTyping(false);
-        streamBotMessage(summary);
+        if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
+            const summary = data.candidates[0].content.parts[0].text;
+            toggleTyping(false);
+            streamBotMessage(summary);
+        } else {
+            throw new Error("Invalid response format from AI API");
+        }
     } catch (error) {
-        console.error("AI Error:", error);
+        console.error("AI Error details:", error);
         toggleTyping(false);
-        addChatMessage('bot', "Sorry, I couldn't summarize that. Please check your connection or try again later.");
+        addChatMessage('bot', `<strong>AI Error:</strong> ${error.message}<br><br>Please check your connection or configure your own Gemini API Key in the Profile settings.`);
     }
 }
 
@@ -489,6 +507,24 @@ darkModeToggle?.addEventListener('change', (e) => {
     }
 });
 
+/* ================== GEMINI API KEY CONFIG ================== */
+const apiKeyInput = document.getElementById('gemini-api-key-input');
+const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+if (apiKeyInput) {
+    apiKeyInput.value = localStorage.getItem('pageflow_gemini_api_key') || '';
+}
+saveApiKeyBtn?.addEventListener('click', () => {
+    const keyVal = apiKeyInput.value.trim();
+    if (keyVal) {
+        localStorage.setItem('pageflow_gemini_api_key', keyVal);
+        alert('Gemini API key saved successfully!');
+    } else {
+        localStorage.removeItem('pageflow_gemini_api_key');
+        alert('Gemini API key removed. Using default key.');
+    }
+});
+
+
 /* ================== HOME LIBRARY ================== */
 function loadHome() {
     const grid = document.getElementById('books-grid');
@@ -663,15 +699,16 @@ async function openBook(book) {
         state.pdfDoc = await loadingTask.promise;
         document.getElementById('page-count').textContent = state.pdfDoc.numPages;
 
-        // Auto-scale correctly for device width if not previously set
-        if (!book.lastScale) {
-            const firstPage = await state.pdfDoc.getPage(1);
-            const unscaledViewport = firstPage.getViewport({ scale: 1.0 });
-            // Calculate optimal width: leave 40px margin, max width 800px for desktop viewing
-            let desiredWidth = window.innerWidth - 40;
-            if (desiredWidth > 800) desiredWidth = 800;
+        // Auto-scale correctly for device width
+        const firstPage = await state.pdfDoc.getPage(1);
+        const unscaledViewport = firstPage.getViewport({ scale: 1.0 });
+        
+        let desiredWidth = window.innerWidth - 40;
+        if (desiredWidth > 800) desiredWidth = 800;
+        const fitScale = desiredWidth / unscaledViewport.width;
 
-            state.scale = desiredWidth / unscaledViewport.width;
+        if (!book.lastScale || (window.innerWidth < 768 && (unscaledViewport.width * state.scale > window.innerWidth))) {
+            state.scale = fitScale;
         }
 
         renderPage(state.pageNum);
@@ -687,10 +724,13 @@ async function renderPage(num) {
     state.pageRendering = true;
 
     const page = await state.pdfDoc.getPage(num);
+    const dpr = window.devicePixelRatio || 1;
     const viewport = page.getViewport({ scale: state.scale });
 
-    state.canvas.height = viewport.height;
-    state.canvas.width = viewport.width;
+    state.canvas.width = Math.floor(viewport.width * dpr);
+    state.canvas.height = Math.floor(viewport.height * dpr);
+    state.canvas.style.width = viewport.width + 'px';
+    state.canvas.style.height = viewport.height + 'px';
 
     // Adjust the wrapper to match canvas size exactly for absolute positioning overlay
     const wrapper = document.getElementById('pdf-wrapper');
@@ -699,7 +739,8 @@ async function renderPage(num) {
 
     const renderContext = {
         canvasContext: state.ctx,
-        viewport: viewport
+        viewport: viewport,
+        transform: [dpr, 0, 0, dpr, 0, 0]
     };
 
     await page.render(renderContext).promise;
@@ -1024,6 +1065,21 @@ function initApp() {
         showView('view-login');
     }
 }
+
+/* ================== WINDOW RESIZE HANDLER (MOBILE FIT) ================== */
+window.addEventListener('resize', () => {
+    const isInReader = document.getElementById('view-reader')?.classList.contains('active');
+    if (isInReader && state.pdfDoc && window.innerWidth < 768) {
+        state.pdfDoc.getPage(state.pageNum).then(page => {
+            const unscaledViewport = page.getViewport({ scale: 1.0 });
+            let desiredWidth = window.innerWidth - 40;
+            state.scale = desiredWidth / unscaledViewport.width;
+            const zoomLvl = document.getElementById('zoom-level');
+            if (zoomLvl) zoomLvl.textContent = Math.round(state.scale * 100) + '%';
+            queueRenderPage(state.pageNum);
+        });
+    }
+});
 
 // Start
 initApp();
