@@ -290,7 +290,7 @@ async function summarizeWithAI(text) {
 
     try {
         const customKey = localStorage.getItem('pageflow_gemini_api_key');
-        const apiKey = customKey ? customKey.trim() : "AIzaSyC15V_gfDSc8hryG2W5dRR0H13e_kQhwq4";
+        const apiKey = customKey ? customKey.trim() : "AQ.Ab8RN6L9gB869vbklk4fdc0DvaZAzWwbhlICq54VZpf4jvAEBg";
         const modelName = "gemini-2.5-flash";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
